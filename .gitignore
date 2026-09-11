@@ -1,0 +1,13 @@
+node_modules/
+out/
+.env
+
+# Frontend build output. The page payload under web/public/data is NOT ignored:
+# it is a projection of recorded research results, and committing it is what
+# lets a fresh clone show the finding without first re-running the pipeline.
+web/dist/
+
+# Local working notes.
+FEASIBILITY.md
+FINAL_PRODUCTION_AUDIT.md
+*_REPORT.md

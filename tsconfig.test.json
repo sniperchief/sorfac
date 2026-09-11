@@ -1,0 +1,17 @@
+// Transpile settings for the test runner only.
+//
+// `npm test` runs both the research tests and the .tsx render tests in one
+// process, so tsx needs a config whose `include` covers the web components as
+// well — a tsconfig's compilerOptions apply only to the files it matches, which
+// is why the root config alone leaves JSX on the classic runtime.
+//
+// tsc never uses this file. Typechecking stays split: `npm run typecheck` for
+// src/ and `npm run typecheck:web` for the app.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "web/src/**/*.ts", "web/src/**/*.tsx"]
+}

@@ -1,0 +1,43 @@
+{
+  "name": "dreamdex-ec-feasibility-spike",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Read-only calibration analysis of DreamDEX Event Contracts on Somnia mainnet.",
+  "dependencies": {
+    "@somnia-chain/markets-sdk": "^0.30.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vite": "^5.4.21"
+  },
+  "scripts": {
+    "inventory": "tsx src/03-inventory.ts",
+    "extract": "tsx src/run-extract.ts",
+    "compare": "tsx src/run-compare.ts",
+    "analyze-quality": "tsx src/run-quality.ts",
+    "validate-freshness": "tsx src/run-freshness.ts",
+    "analyze-anomaly": "tsx src/run-anomaly.ts",
+    "test-correction": "tsx src/run-correction.ts",
+    "audit": "tsx src/audit-trace.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --tsconfig tsconfig.test.json --test src/test/*.test.ts src/test/*.test.tsx",
+    "test:unit": "tsx --tsconfig tsconfig.test.json --test src/test/extractor.test.ts src/test/comparison.test.ts src/test/quality.test.ts src/test/freshness.test.ts src/test/anomaly.test.ts src/test/correction.test.ts src/test/io.test.ts src/test/mace.test.ts src/test/web.test.ts src/test/web-render.test.tsx",
+    "verify": "npm run typecheck && npm run typecheck:web && npm test",
+    "web:data": "tsx src/web/build-data.ts",
+    "web:build": "npm run web:data && vite build --config web/vite.config.ts",
+    "web:dev": "vite --config web/vite.config.ts",
+    "web": "tsx src/web/server.ts",
+    "web:start": "npm run web:build && npm run web",
+    "typecheck:web": "tsc -p web/tsconfig.json --noEmit",
+    "web:check": "tsx src/web/check-payload.ts"
+  }
+}
