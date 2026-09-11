@@ -1,0 +1,19 @@
+# One-click deploy for Render. The same two commands work on Railway, Fly.io or
+# any host that can run a Node process.
+#
+# The build bundles the committed page payload; it does not re-run the research
+# pipeline, which needs out/*.json and is not something a deploy should do.
+services:
+  - type: web
+    name: dreamdex-calibration
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      # PORT is injected by the host; src/web/server.ts reads it.
+      - key: DDX_ENV
+        value: mainnet
+      - key: DDX_REPO_URL
+        value: https://github.com/sniperchief/sorfac
+    healthCheckPath: /api/live/status
