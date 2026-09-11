@@ -17,20 +17,15 @@ import { createGzip } from "node:zlib";
 import { pipeline } from "node:stream";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { client, ENV, INDEXER_URL } from "../config.js";
-import type { BinaryMarket } from "@somnia-chain/markets-sdk";
-import { cadenceCohort } from "../quality.js";
+import { ENV, INDEXER_URL } from "../config.js";
+import { liveMarkets, liveStatus, parseLiveLimit } from "./live.js";
+
+// Re-exported so the server stays the single import point for its own surface.
+export { projectLiveMarket, parseLiveLimit, type LiveMarket } from "./live.js";
 
 const PORT = Number(process.env.PORT ?? 5173);
 const STATIC_ROOT = resolve(process.env.DDX_WEB_ROOT ?? "web/dist");
 export const staticRoot = () => STATIC_ROOT;
-
-/** Upper bound on a single live query, so one request cannot pull the venue. */
-const MAX_LIVE_LIMIT = 50;
-const DEFAULT_LIVE_LIMIT = 24;
-
-/** Live responses are reused for this long: a demo reloads far faster than markets roll. */
-const CACHE_TTL_MS = 10_000;
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -42,105 +37,11 @@ const MIME: Record<string, string> = {
   ".ico": "image/x-icon",
 };
 
-type Cached<T> = { at: number; value: T };
-const cache = new Map<string, Cached<unknown>>();
-
-async function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
-  const hit = cache.get(key) as Cached<T> | undefined;
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.value;
-  const value = await fn();
-  cache.set(key, { at: Date.now(), value });
-  return value;
-}
-
-/**
- * One open market, reduced to display fields.
- *
- * `impliedProbability` is the market's CURRENT last traded price scaled by its
- * own quoteDecimals. It is NOT a T-1m observation and must never be shown as
- * one: the research basis is the last print at or before `expiry - 60`, which
- * for a market still trading has not happened yet. Null when the market has not
- * traded, rather than a default.
- */
-export type LiveMarket = {
-  id: string;
-  asset: string;
-  question: string;
-  cadence: string;
-  intervalSec: number | null;
-  tradingStart: number;
-  expiry: number;
-  status: string;
-  tradeCount: number;
-  impliedProbability: number | null;
-  lastTradeAt: number | null;
-  /** Collateral token address; the indexer does not serve its symbol on this row. */
-  collateral: string;
-  quoteDecimals: number;
-};
-
-export function projectLiveMarket(m: BinaryMarket): LiveMarket {
-  const intervalSec = m.intervalSec == null ? null : Number(m.intervalSec);
-  const price = m.lastPrice == null ? null : Number(m.lastPrice) / 10 ** m.quoteDecimals;
-  return {
-    id: m.marketId,
-    asset: m.asset,
-    question: m.question,
-    cadence: m.interval ?? cadenceCohort(intervalSec),
-    intervalSec,
-    tradingStart: Number(m.tradingStart),
-    expiry: Number(m.expiry),
-    status: m.status,
-    tradeCount: Number(m.tradeCount),
-    impliedProbability: price != null && Number.isFinite(price) && price > 0 && price < 1 ? price : null,
-    lastTradeAt: m.lastTradeAt == null ? null : Number(m.lastTradeAt),
-    collateral: m.collateral,
-    quoteDecimals: m.quoteDecimals,
-  };
-}
-
-/** Clamp a caller-supplied limit into the bounded range. */
-export function parseLiveLimit(raw: string | null): number {
-  const n = Number(raw);
-  if (!Number.isInteger(n) || n <= 0) return DEFAULT_LIVE_LIMIT;
-  return Math.min(MAX_LIVE_LIMIT, n);
-}
-
 const send = (res: import("node:http").ServerResponse, status: number, body: unknown) => {
   const text = JSON.stringify(body);
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
   res.end(text);
 };
-
-const failure = (e: unknown) => (e instanceof Error ? `${e.name}: ${e.message}` : String(e));
-
-async function handleStatus() {
-  const t0 = Date.now();
-  try {
-    const markets = await cached("live:probe", () => client.listLiveBinaryMarkets({ limit: 1, orderBy: "closingSoon" }));
-    return {
-      ok: true as const,
-      env: ENV,
-      indexerUrl: INDEXER_URL,
-      latencyMs: Date.now() - t0,
-      checkedAt: new Date().toISOString(),
-      reachable: true,
-      openMarketSeen: markets.length > 0,
-    };
-  } catch (e) {
-    return { ok: false as const, env: ENV, indexerUrl: INDEXER_URL, latencyMs: Date.now() - t0, checkedAt: new Date().toISOString(), reachable: false, error: failure(e) };
-  }
-}
-
-async function handleLiveMarkets(limit: number) {
-  const t0 = Date.now();
-  try {
-    const markets = await cached(`live:markets:${limit}`, () => client.listLiveBinaryMarkets({ limit, orderBy: "closingSoon" }));
-    return { ok: true as const, env: ENV, indexerUrl: INDEXER_URL, fetchedAt: new Date().toISOString(), latencyMs: Date.now() - t0, count: markets.length, rows: markets.map(projectLiveMarket) };
-  } catch (e) {
-    return { ok: false as const, env: ENV, indexerUrl: INDEXER_URL, fetchedAt: new Date().toISOString(), latencyMs: Date.now() - t0, error: failure(e) };
-  }
-}
 
 /** Resolve a URL path inside STATIC_ROOT, refusing anything that escapes it. */
 export function resolveStatic(root: string, urlPath: string): string | null {
@@ -161,11 +62,11 @@ export const handleRequest = async (req: import("node:http").IncomingMessage, re
   }
 
   if (url.pathname === "/api/live/status") {
-    send(res, 200, await handleStatus());
+    send(res, 200, await liveStatus());
     return;
   }
   if (url.pathname === "/api/live/markets") {
-    const body = await handleLiveMarkets(parseLiveLimit(url.searchParams.get("limit")));
+    const body = await liveMarkets(parseLiveLimit(url.searchParams.get("limit")));
     send(res, body.ok ? 200 : 503, body);
     return;
   }

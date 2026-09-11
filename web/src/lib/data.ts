@@ -30,7 +30,7 @@ async function getJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   const type = res.headers.get("content-type") ?? "";
   if (!type.includes("json")) {
     throw new Error(
-      url.startsWith("api/")
+      url.startsWith("/api/")
         ? `${url} returned ${type || "no content type"} instead of JSON — the API server is not running. Start it with: npm run web`
         : `${url} returned ${type || "no content type"} instead of JSON`,
     );
@@ -56,7 +56,7 @@ function useJson<T>(url: string, enabled = true): Async<T> {
   return result;
 }
 
-export const useResearch = () => useJson<ResearchBundle>("data/research.json");
+export const useResearch = () => useJson<ResearchBundle>("/data/research.json");
 
 export type MarketsDoc = { env: string; builtAt: string; source: string; count: number } & EncodedMarkets;
 
@@ -65,7 +65,7 @@ export type MarketsDoc = { env: string; builtAt: string; source: string; count: 
  * It is half a megabyte, and the page must be readable long before that.
  */
 export function useMarkets(enabled: boolean): Async<{ rows: MarketRow[]; source: string; builtAt: string }> {
-  const doc = useJson<MarketsDoc>("data/markets.json", enabled);
+  const doc = useJson<MarketsDoc>("/data/markets.json", enabled);
   const [decoded, setDecoded] = useState<Async<{ rows: MarketRow[]; source: string; builtAt: string }>>({ state: "loading" });
 
   useEffect(() => {
@@ -115,7 +115,7 @@ export function useLiveStatus(intervalMs = 60_000): Async<LiveStatus> {
     let timer: ReturnType<typeof setTimeout>;
     const tick = async () => {
       try {
-        const data = await getJson<LiveStatus>("api/live/status");
+        const data = await getJson<LiveStatus>("/api/live/status");
         if (mounted.current) setResult({ state: "ready", data });
       } catch (e) {
         // The static build can be served without the API server; that is a
@@ -144,7 +144,7 @@ export function useLiveMarkets(limit: number) {
     if (!armed) return;
     const ac = new AbortController();
     setResult({ state: "loading" });
-    getJson<LiveMarketsDoc>(`api/live/markets?limit=${limit}`, ac.signal)
+    getJson<LiveMarketsDoc>(`/api/live/markets?limit=${limit}`, ac.signal)
       .then((data) => {
         if (data.ok) setResult({ state: "ready", data });
         else setResult({ state: "error", error: data.error ?? "the indexer did not return markets" });

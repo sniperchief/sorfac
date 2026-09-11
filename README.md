@@ -23,7 +23,7 @@ No wallet, private key, or credential of any kind is required or used. The SDK i
 
 ```bash
 npm install
-npm run verify        # typecheck (research + web) + 281 tests
+npm run verify        # typecheck (research + web) + 283 tests
 ```
 
 ## Configuration
@@ -109,6 +109,35 @@ not been run.
 | `DDX_REPO_URL` | Repository link for the footer. Omitted entirely when unset. |
 | `DDX_WEB_ROOT` | Static root to serve. Default `web/dist`. |
 
+## Deploying
+
+The repository is configured for Vercel, which serves the built page from a CDN and runs the
+two live endpoints as serverless functions. Import the repository at vercel.com and accept
+the defaults; `vercel.json` supplies the build command, the output directory, and the rewrite
+that lets `/analyze` survive a refresh.
+
+Any host that can run a Node process works too — `render.yaml` covers Render, and the same
+two commands work on Railway or Fly.io:
+
+```bash
+npm ci && npm run build     # bundles the committed page payload
+npm start                   # serves it, plus /api/live/*, on $PORT
+```
+
+A deploy never runs the research pipeline. `npm run build` bundles the payload committed in
+`web/public/data`, and refuses to build if it is absent rather than shipping a page with an
+empty study. Only `npm run web:build` regenerates that payload, and it needs `out/`.
+
+| Variable | Purpose |
+|---|---|
+| `PORT` | Injected by the host. Node-server deploys only. |
+| `DDX_ENV` | `mainnet` (default) or `testnet`. |
+| `DDX_REPO_URL` | Repository link for the footer. Omitted when unset. |
+
+A static-only host with no functions still serves the whole study, because the research half
+is static JSON. The live indicator reads "live data unavailable" and the open-market list
+shows an error, which is the designed degradation rather than a failure.
+
 ## Method in one paragraph
 
 For each settled market we take the last trade at or before **60 seconds before that market's own expiry** (T-1m), scale it by the market's own collateral decimals into a probability, and score it against the realised outcome using ten fixed 10% buckets, Brier score, and log loss. Markets are keyed by `marketId`, never by pool address, because one pool has served 694 successive markets.
@@ -166,9 +195,10 @@ src/correction.ts     Phase-6 frozen correction (-0.0856)
 src/io.ts             guarded loading and exit-code discipline
 src/run-*.ts          one command per phase
 src/0*.ts             Phase-1 exploration scripts
-src/web/              the web UI's data projection and its thin server
+src/web/              the web UI's data projection, live layer and thin server
+api/                  the same live layer as serverless functions, for Vercel
 web/                  the React + Vite single-page app
-src/test/             281 tests
+src/test/             283 tests
 ```
 
 ## Licence and data

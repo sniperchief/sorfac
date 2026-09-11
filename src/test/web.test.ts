@@ -32,6 +32,8 @@ import {
   type T1mDoc,
 } from "../web/bundle.js";
 import { createApp, listenFailureMessage, parseLiveLimit, projectLiveMarket, resolveStatic } from "../web/server.js";
+import liveStatusFn from "../../api/live/status.js";
+import liveMarketsFn from "../../api/live/markets.js";
 import { FROZEN_CORRECTION } from "../correction.js";
 import { UNAVAILABLE, duration, int, pct, pp, shortId, signed, stampUnix } from "../../web/src/lib/format.js";
 import { ALL, EMPTY_FILTERS, filterMarkets, pageCount, pageOf } from "../../web/src/lib/filter.js";
@@ -748,6 +750,26 @@ describe("the payload cross-check", () => {
     }
 
     assert.equal(run().code, 0, "the restored payload must pass again");
+  });
+});
+
+describe("the serverless deploy entry points", () => {
+  // Vercel invokes api/**/*.ts as a default-exported (req, res) handler. If
+  // these stop being that shape the deploy serves 500s while the Node server
+  // keeps working locally, which is the worst way to find out.
+  test("both routes export a handler of the shape the host calls", () => {
+    for (const [name, fn] of [["status", liveStatusFn], ["markets", liveMarketsFn]] as const) {
+      assert.equal(typeof fn, "function", `api/live/${name} does not default-export a function`);
+      assert.equal(fn.length, 2, `api/live/${name} must take (req, res)`);
+    }
+  });
+
+  test("they share the live layer with the Node server rather than restating it", async () => {
+    const live = await import("../web/live.js");
+    const server = await import("../web/server.js");
+    // Same function object, not a copy: the two deployments cannot drift.
+    assert.equal(server.projectLiveMarket, live.projectLiveMarket);
+    assert.equal(server.parseLiveLimit, live.parseLiveLimit);
   });
 });
 
