@@ -2,15 +2,21 @@
 
 import type { ReactNode } from "react";
 import type { Async, LiveStatus } from "../lib/data";
-import { hrefFor, linkHandler, type Route } from "../lib/router";
+import { hrefFor, linkHandler, SECTIONS, type Route } from "../lib/router";
 import { UNAVAILABLE, stampIso } from "../lib/format";
 
-const NAV = [
-  { href: "#finding", label: "The finding" },
-  { href: "#tested", label: "What we tested" },
-  { href: "#method", label: "How it works" },
-  { href: "#markets", label: "Markets" },
-  { href: "#experiment", label: "Experiment" },
+/**
+ * Section links, as home routes rather than bare hashes.
+ *
+ * A bare `#finding` does nothing from the workspace, where that section is not
+ * mounted. Routing home with a section navigates first and scrolls after.
+ */
+const NAV: { section: (typeof SECTIONS)[number]; label: string }[] = [
+  { section: "finding", label: "The finding" },
+  { section: "tested", label: "What we tested" },
+  { section: "method", label: "How it works" },
+  { section: "markets", label: "Markets" },
+  { section: "experiment", label: "Experiment" },
 ];
 
 /**
@@ -58,11 +64,14 @@ export function Header({ status, onNavigate }: { status: Async<LiveStatus>; onNa
           DreamDEX Calibration
         </a>
         <nav className="topnav" aria-label="Sections">
-          {NAV.map((n) => (
-            <a key={n.href} href={n.href}>
-              {n.label}
-            </a>
-          ))}
+          {NAV.map((n) => {
+            const to: Route = { name: "home", section: n.section };
+            return (
+              <a key={n.section} href={hrefFor(to)} onClick={linkHandler(go, to)}>
+                {n.label}
+              </a>
+            );
+          })}
           <a className="topnav-cta" href={hrefFor(ANALYZE)} onClick={linkHandler(go, ANALYZE)}>
             Analyse a price
           </a>

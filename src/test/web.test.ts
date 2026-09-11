@@ -37,6 +37,7 @@ import liveMarketsFn from "../../api/live/markets.js";
 import { FROZEN_CORRECTION } from "../correction.js";
 import { UNAVAILABLE, duration, int, pct, pp, shortId, signed, stampUnix } from "../../web/src/lib/format.js";
 import { ALL, EMPTY_FILTERS, filterMarkets, pageCount, pageOf } from "../../web/src/lib/filter.js";
+import { hrefFor, parseRoute, SECTIONS } from "../../web/src/lib/router.js";
 
 // ---------------------------------------------------------------------------
 // Fixtures: the SHAPES of the persisted documents, with recognisable sentinel
@@ -770,6 +771,55 @@ describe("the serverless deploy entry points", () => {
     // Same function object, not a copy: the two deployments cannot drift.
     assert.equal(server.projectLiveMarket, live.projectLiveMarket);
     assert.equal(server.parseLiveLimit, live.parseLiveLimit);
+  });
+});
+
+describe("routing between the overview and the workspace", () => {
+  test("the workspace is reachable by path, with or without a price", () => {
+    assert.deepEqual(parseRoute("/analyze"), { name: "analyze", price: null });
+    assert.deepEqual(parseRoute("/analyze", "?price=25"), { name: "analyze", price: 25 });
+    assert.deepEqual(parseRoute("/analyze/"), { name: "analyze", price: null });
+  });
+
+  test("an out-of-range or junk price is dropped rather than analysed", () => {
+    for (const q of ["?price=0", "?price=100", "?price=abc", "?price=-5", "?price="]) {
+      assert.equal((parseRoute("/analyze", q) as { price: number | null }).price, null, `${q} was accepted`);
+    }
+    assert.equal((parseRoute("/analyze", "?price=25.6") as { price: number | null }).price, 26);
+  });
+
+  test("anything else is the overview", () => {
+    for (const p of ["/", "/nonsense", "/analyze/extra"]) {
+      assert.equal(parseRoute(p).name, "home");
+    }
+  });
+
+  // The bug this guards: the header offers section links from the workspace,
+  // where those sections are not mounted. A bare hash does nothing there, so a
+  // section has to be part of the route.
+  test("a section hash is carried on the overview route", () => {
+    for (const id of SECTIONS) {
+      assert.deepEqual(parseRoute("/", "", `#${id}`), { name: "home", section: id });
+      assert.equal(hrefFor({ name: "home", section: id }), `/#${id}`);
+    }
+  });
+
+  test("a hash pointing at no section is ignored rather than carried", () => {
+    for (const h of ["#nope", "#", "", "#main"]) {
+      assert.equal((parseRoute("/", "", h) as { section?: string | null }).section, null, `${h} was accepted`);
+    }
+    assert.equal(hrefFor({ name: "home" }), "/");
+  });
+
+  test("a hash on the workspace route is not mistaken for a section", () => {
+    assert.deepEqual(parseRoute("/analyze", "?price=25", "#finding"), { name: "analyze", price: 25 });
+  });
+
+  test("every section link points at a section the overview actually renders", async () => {
+    const app = readFileSync("web/src/App.tsx", "utf8");
+    for (const id of SECTIONS) {
+      assert.ok(app.includes(`id="${id}"`), `the overview renders no section #${id}`);
+    }
   });
 });
 
