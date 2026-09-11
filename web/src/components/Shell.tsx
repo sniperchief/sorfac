@@ -61,7 +61,7 @@ export function Header({ status, onNavigate }: { status: Async<LiveStatus>; onNa
       <div className="wrap topbar-in">
         <a className="wordmark" href={hrefFor(HOME)} onClick={linkHandler(go, HOME)}>
           <span className="tick" aria-hidden="true" />
-          DreamDEX Calibration
+          Sorfac
         </a>
         <nav className="topnav" aria-label="Sections">
           {NAV.map((n) => {

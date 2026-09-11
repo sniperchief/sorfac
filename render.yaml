@@ -5,7 +5,7 @@
 # pipeline, which needs out/*.json and is not something a deploy should do.
 services:
   - type: web
-    name: dreamdex-calibration
+    name: sorfac
     runtime: node
     plan: free
     buildCommand: npm ci && npm run build

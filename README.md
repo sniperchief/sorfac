@@ -1,6 +1,8 @@
-# DreamDEX Event Contracts — Calibration Analysis
+# Sorfac
 
-A read-only research pipeline that measures how well **DreamDEX Event Contract** prices on **Somnia mainnet** predict their own outcomes.
+**Can you trust the probability?**
+
+Sorfac measures how well **DreamDEX Event Contract** prices on **Somnia mainnet** predict their own outcomes.
 
 It answers one question: when the market says an event has a 25% chance, does it happen 25% of the time?
 

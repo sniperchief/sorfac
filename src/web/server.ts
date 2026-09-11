@@ -146,7 +146,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     process.exit(1);
   });
   app.listen(PORT, () => {
-    console.log(`DreamDEX Calibration UI  ->  http://localhost:${PORT}`);
+    console.log(`Sorfac  ->  http://localhost:${PORT}`);
     console.log(`  env:     ${ENV}`);
     console.log(`  indexer: ${INDEXER_URL}`);
     console.log(`  static:  ${STATIC_ROOT}${existsSync(STATIC_ROOT) ? "" : "  (not built yet — run npm run web:build)"}`);
