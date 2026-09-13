@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Read-only calibration analysis of DreamDEX Event Contracts on Somnia mainnet.",
+  "license": "MIT",
   "dependencies": {
     "@somnia-chain/markets-sdk": "^0.30.0",
     "react": "^18.3.1",
